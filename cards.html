@@ -51,6 +51,19 @@
       background: #cbd5e1;
     }
     .batch-dot.filled { background: var(--primary); }
+    .side-missing {
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      margin: 8px 0;
+      aspect-ratio: 85.6 / 54;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -62,7 +75,7 @@
         <h2 class="section-title" style="margin:0;" data-en="ID Card Formatter (Up to 5 Cards)" data-bn="আইডি কার্ড ফরম্যাটার (সর্বোচ্চ ৫টি কার্ড)">ID Card Formatter (Up to 5 Cards)</h2>
         <button type="button" class="btn-secondary btn-sm" id="openScannerFromCards" data-en="📄 Smart Scanner" data-bn="📄 স্মার্ট স্ক্যানার">📄 Smart Scanner</button>
       </div>
-      <p class="section-sub" data-en="Select up to 5 PDF/image cards at once. Auto-crops e-Ration, e-Shram, ABHA, Aadhaar & PAN cards." data-bn="একসাথে সর্বোচ্চ ৫টি কার্ড সিলেক্ট করুন। রেশন, ই-শ্রম, আভা, আধার ও প্যান কার্ড অটো-ক্রপ হবে।">Select up to 5 PDF/image cards at once. Auto-crops e-Ration, e-Shram, ABHA, Aadhaar & PAN cards.</p>
+      <p class="section-sub" data-en="Select up to 5 PDF/image cards at once. Auto-crops e-Ration, e-Shram, ABHA, Ayushman (PM-JAY), Aadhaar & PAN cards." data-bn="একসাথে সর্বোচ্চ ৫টি কার্ড সিলেক্ট করুন। রেশন, ই-শ্রম, আভা, আয়ুষ্মান, আধার ও প্যান কার্ড অটো-ক্রপ হবে।">Select up to 5 PDF/image cards at once. Auto-crops e-Ration, e-Shram, ABHA, Ayushman (PM-JAY), Aadhaar & PAN cards.</p>
 
       <div style="margin-bottom:12px;">
         <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;" data-en="Card Type Preset" data-bn="কার্ড টাইপ">Card Type Preset</label>
@@ -70,6 +83,7 @@
           <button type="button" class="pill-btn active" data-type="ration">WB e-Ration</button>
           <button type="button" class="pill-btn" data-type="eshram">e-Shram Card</button>
           <button type="button" class="pill-btn" data-type="abha">ABHA Card</button>
+          <button type="button" class="pill-btn" data-type="ayushman">Ayushman Card (PM-JAY)</button>
           <button type="button" class="pill-btn" data-type="aadhaar">Aadhaar</button>
           <button type="button" class="pill-btn" data-type="pan">PAN Card</button>
         </div>
@@ -148,12 +162,18 @@
         <strong style="font-size:15px;">Adjust Crop</strong>
         <button type="button" class="hdr-btn" id="closeAdjustCropBtn">✕</button>
       </div>
-      <div style="margin-bottom:8px;">
-        <label style="font-size:12px;font-weight:700;">Side:</label>
-        <select id="adjustSideSelect" class="form-select" style="height:38px;">
-          <option value="front">Front</option>
-          <option value="back">Back</option>
-        </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;">Side:</label>
+          <select id="adjustSideSelect" class="form-select" style="height:38px;">
+            <option value="front">Front</option>
+            <option value="back">Back</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;">PDF page:</label>
+          <select id="adjustPageSelect" class="form-select" style="height:38px;"></select>
+        </div>
       </div>
       <canvas id="adjustCropCanvas" style="width:100%;max-height:240px;object-fit:contain;border:1px solid var(--border);border-radius:10px;background:#f8fafc;"></canvas>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;font-size:12px;">
@@ -178,35 +198,51 @@
 
     const cardState = {
       type: "ration",
-      cards: [], // { id, name, sourceCanvas, frontRect, backRect, frontDataUrl, backDataUrl }
+      // { id, name, type, pages:{1:canvas,2:canvas}, frontRect, backRect, backMissing, frontDataUrl, backDataUrl }
+      cards: [],
       sheetMode: "A4",
       editingCardIdx: 0
     };
 
-    // Calibrated Crop Templates (normalized 0..1 coordinates on A4 PDF)
+    // CR80 ID card at 300 DPI (85.6 mm x 54.0 mm)
+    const CARD_W = 1011;
+    const CARD_H = 638;
+
+    // Calibrated crop templates: normalized 0..1 coordinates on the given PDF page.
+    // `page` tells the loader which PDF page the face lives on.
     const PRESET_RECTS = {
-      // Optimized for WB e-Ration Card (RKSY-I, PHH, AAY, SPHH) with safe right/bottom buffer
+      // West Bengal e-Ration (RKSY-1, RKSY-2, PHH, SPHH, AAY): 1-page A4, cards in bottom strip
       ration: {
-        front: { x: 0.032, y: 0.542, w: 0.456, h: 0.212 },
-        back:  { x: 0.508, y: 0.542, w: 0.458, h: 0.212 }
+        front: { page: 1, x: 0.072, y: 0.705, w: 0.420, h: 0.200 },
+        back:  { page: 1, x: 0.508, y: 0.705, w: 0.420, h: 0.200 }
       },
       eshram: {
-        front: { x: 0.055, y: 0.120, w: 0.435, h: 0.205 },
-        back:  { x: 0.510, y: 0.120, w: 0.435, h: 0.205 }
+        front: { page: 1, x: 0.055, y: 0.120, w: 0.435, h: 0.205 },
+        back:  { page: 1, x: 0.510, y: 0.120, w: 0.435, h: 0.205 }
       },
+      // ABHA: 1-page A4, front/back side by side at the top
       abha: {
-        front: { x: 0.055, y: 0.130, w: 0.435, h: 0.205 },
-        back:  { x: 0.510, y: 0.130, w: 0.435, h: 0.205 }
+        front: { page: 1, x: 0.045, y: 0.042, w: 0.445, h: 0.190 },
+        back:  { page: 1, x: 0.510, y: 0.042, w: 0.445, h: 0.190 }
+      },
+      // Ayushman (PM-JAY): 2-page landscape card PDF, page 1 = front, page 2 = back (full-bleed)
+      ayushman: {
+        front: { page: 1, x: 0.000, y: 0.000, w: 1.000, h: 1.000 },
+        back:  { page: 2, x: 0.000, y: 0.000, w: 1.000, h: 1.000 }
       },
       aadhaar: {
-        front: { x: 0.045, y: 0.680, w: 0.445, h: 0.210 },
-        back:  { x: 0.510, y: 0.680, w: 0.445, h: 0.210 }
+        front: { page: 1, x: 0.045, y: 0.680, w: 0.445, h: 0.210 },
+        back:  { page: 1, x: 0.510, y: 0.680, w: 0.445, h: 0.210 }
       },
       pan: {
-        front: { x: 0.055, y: 0.660, w: 0.435, h: 0.205 },
-        back:  { x: 0.510, y: 0.660, w: 0.435, h: 0.205 }
+        front: { page: 1, x: 0.055, y: 0.660, w: 0.435, h: 0.205 },
+        back:  { page: 1, x: 0.510, y: 0.660, w: 0.435, h: 0.205 }
       }
     };
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
 
     document.getElementById("cardTypePills").addEventListener("click", (e) => {
       const btn = e.target.closest(".pill-btn");
@@ -228,47 +264,71 @@
     });
     cardInput.addEventListener("change", (e) => handleCardFiles(e.target.files));
 
-    function extractRectDataUrl(srcCanvas, rect) {
-      // Standard ID Card Aspect Ratio: 85.6mm x 54mm (1011 x 638 px at 300 DPI)
+    // Crop one face out of a rendered page and normalise it to CR80 (1011 x 638 px).
+    function extractRectDataUrl(card, rect) {
+      const src = card.pages[rect.page] || card.pages[1];
       const out = document.createElement("canvas");
-      out.width = 1011;
-      out.height = 638;
+      out.width = CARD_W;
+      out.height = CARD_H;
       const ctx = out.getContext("2d");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, out.width, out.height);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
 
-      const sx = Math.round(srcCanvas.width * rect.x);
-      const sy = Math.round(srcCanvas.height * rect.y);
-      const sw = Math.round(srcCanvas.width * rect.w);
-      const sh = Math.round(srcCanvas.height * rect.h);
-      ctx.drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+      let sx = Math.max(0, Math.round(src.width * rect.x));
+      let sy = Math.max(0, Math.round(src.height * rect.y));
+      let sw = Math.round(src.width * rect.w);
+      let sh = Math.round(src.height * rect.h);
+      sw = Math.max(1, Math.min(sw, src.width - sx));
+      sh = Math.max(1, Math.min(sh, src.height - sy));
+      ctx.drawImage(src, sx, sy, sw, sh, 0, 0, out.width, out.height);
       return out.toDataURL("image/jpeg", 0.96);
     }
 
-    async function renderFileToCanvas(file) {
+    // High-resolution render of one PDF page (A4 pages at 3.5x ~ 600 DPI-class; small card-size
+    // pages are rendered larger so they always exceed the 1011 px CR80 output width).
+    async function renderPdfPage(pdf, pageNo) {
+      const page = await pdf.getPage(pageNo);
+      const base = page.getViewport({ scale: 1 });
+      let scale = base.width < 400 ? 5 : 3.5;
+      const maxPixels = 24e6;
+      if (base.width * base.height * scale * scale > maxPixels) {
+        scale = Math.sqrt(maxPixels / (base.width * base.height));
+      }
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      return canvas;
+    }
+
+    // Returns { pages:{n:canvas}, numPages, isPdf }. Only the pages the preset needs are rendered.
+    async function renderFileToPages(file, preset) {
       if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
         const buf = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 2.6 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-        return { canvas, isPdf: true };
-      } else {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        await new Promise((res) => { img.onload = res; img.src = url; });
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        canvas.getContext("2d").drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        return { canvas, isPdf: false };
+        const wanted = [...new Set([preset.front.page, preset.back.page])].filter((p) => p >= 1 && p <= pdf.numPages);
+        if (!wanted.includes(1)) wanted.unshift(1);
+        const pages = {};
+        for (const p of wanted.sort((x, y) => x - y)) {
+          pages[p] = await renderPdfPage(pdf, p);
+        }
+        return { pages, numPages: pdf.numPages, isPdf: true };
       }
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      return { pages: { 1: canvas }, numPages: 1, isPdf: false };
     }
 
     async function handleCardFiles(fileList) {
@@ -278,6 +338,7 @@
       const remainingSlots = 5 - cardState.cards.length;
       if (remainingSlots <= 0) {
         window.ShopUI.toast("Maximum 5 cards already in batch!");
+        cardInput.value = "";
         return;
       }
       if (files.length > remainingSlots) {
@@ -285,24 +346,58 @@
         files = files.slice(0, remainingSlots);
       }
 
+      const type = cardState.type;
+      const preset = PRESET_RECTS[type] || PRESET_RECTS.ration;
+      const fullImageRect = { page: 1, x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
+
       for (let i = 0; i < files.length; i++) {
         const pct = Math.round(((i + 0.3) / files.length) * 100);
         window.ShopUI.setProgress("cardProgressBox", `Reading card ${i + 1} of ${files.length}...`, pct);
 
-        const { canvas, isPdf } = await renderFileToCanvas(files[i]);
-        const preset = PRESET_RECTS[cardState.type] || PRESET_RECTS.ration;
-        const frontRect = isPdf ? { ...preset.front } : { x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
-        const backRect  = isPdf ? { ...preset.back }  : { x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
+        try {
+          const { pages, numPages, isPdf } = await renderFileToPages(files[i], preset);
 
-        cardState.cards.push({
-          id: Date.now() + Math.random(),
-          name: files[i].name,
-          sourceCanvas: canvas,
-          frontRect,
-          backRect,
-          frontDataUrl: extractRectDataUrl(canvas, frontRect),
-          backDataUrl: extractRectDataUrl(canvas, backRect)
-        });
+          let frontRect;
+          let backRect;
+          let backMissing = false;
+
+          if (isPdf) {
+            frontRect = { ...preset.front };
+            if (preset.back.page <= numPages) {
+              backRect = { ...preset.back };
+            } else {
+              // e.g. Ayushman PDF with only 1 page: back is optional, user can crop it manually
+              backMissing = true;
+              backRect = { ...fullImageRect };
+            }
+          } else {
+            frontRect = { ...fullImageRect };
+            backRect = { ...fullImageRect };
+            // Single image under a 2-page preset: front only, back stays blank/optional
+            backMissing = preset.back.page > 1;
+          }
+
+          const card = {
+            id: Date.now() + Math.random(),
+            name: files[i].name,
+            type,
+            pages,
+            frontRect,
+            backRect,
+            backMissing,
+            frontDataUrl: null,
+            backDataUrl: null
+          };
+          card.frontDataUrl = extractRectDataUrl(card, frontRect);
+          card.backDataUrl = backMissing ? null : extractRectDataUrl(card, backRect);
+          cardState.cards.push(card);
+          if (backMissing) {
+            window.ShopUI.toast(`Card ${cardState.cards.length}: back side not found. Use "Adjust crop" to pick it.`);
+          }
+        } catch (err) {
+          console.error(err);
+          window.ShopUI.toast(`Could not read "${files[i].name}".`);
+        }
 
         window.ShopUI.setProgress("cardProgressBox", `Processed ${i + 1} of ${files.length}`, Math.round(((i + 1) / files.length) * 100));
       }
@@ -339,7 +434,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
             <div>
               <strong style="font-size:15px;">Card ${idx + 1}</strong>
-              <span style="display:block;font-size:12px;color:#64748b;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</span>
+              <span style="display:block;font-size:12px;color:#64748b;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.name)}</span>
             </div>
             <div style="display:flex;gap:6px;">
               <button type="button" class="btn-secondary btn-sm" data-adjust="${idx}">✂ Adjust crop</button>
@@ -357,9 +452,11 @@
             <div class="side-box">
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <strong style="font-size:13px;">Back</strong>
-                <button type="button" class="btn-secondary btn-sm" data-dl-back="${idx}">⬇ Back JPG</button>
+                ${c.backDataUrl ? `<button type="button" class="btn-secondary btn-sm" data-dl-back="${idx}">⬇ Back JPG</button>` : ""}
               </div>
-              <img src="${c.backDataUrl}" alt="Back" />
+              ${c.backDataUrl
+                ? `<img src="${c.backDataUrl}" alt="Back" />`
+                : `<div class="side-missing">Back side not found in this file (optional). Tap "Adjust crop" → Back to select it manually.</div>`}
             </div>
           </div>
         `;
@@ -396,10 +493,27 @@
       syncCropSlidersFromCard();
     }
 
-    function syncCropSlidersFromCard() {
+    function currentAdjustRect() {
       const c = cardState.cards[cardState.editingCardIdx];
-      const side = document.getElementById("adjustSideSelect").value;
-      const r = side === "front" ? c.frontRect : c.backRect;
+      return document.getElementById("adjustSideSelect").value === "front" ? c.frontRect : c.backRect;
+    }
+
+    function fillPageSelect(selectedPage) {
+      const c = cardState.cards[cardState.editingCardIdx];
+      const sel = document.getElementById("adjustPageSelect");
+      sel.innerHTML = "";
+      Object.keys(c.pages).forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = `Page ${p}`;
+        sel.appendChild(opt);
+      });
+      sel.value = c.pages[selectedPage] ? String(selectedPage) : "1";
+    }
+
+    function syncCropSlidersFromCard() {
+      const r = currentAdjustRect();
+      fillPageSelect(r.page);
       document.getElementById("cropXRange").value = (r.x * 100).toFixed(1);
       document.getElementById("cropYRange").value = (r.y * 100).toFixed(1);
       document.getElementById("cropWRange").value = (r.w * 100).toFixed(1);
@@ -409,11 +523,15 @@
 
     function drawAdjustOverlay() {
       const c = cardState.cards[cardState.editingCardIdx];
+      const page = Number(document.getElementById("adjustPageSelect").value) || 1;
+      const src = c.pages[page] || c.pages[1];
       const canvas = document.getElementById("adjustCropCanvas");
-      canvas.width = c.sourceCanvas.width;
-      canvas.height = c.sourceCanvas.height;
+      // Draw a downscaled copy so the sliders stay smooth with high-res pages
+      const k = Math.min(1, 900 / src.width);
+      canvas.width = Math.round(src.width * k);
+      canvas.height = Math.round(src.height * k);
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(c.sourceCanvas, 0, 0);
+      ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
 
       const x = (parseFloat(document.getElementById("cropXRange").value) / 100) * canvas.width;
       const y = (parseFloat(document.getElementById("cropYRange").value) / 100) * canvas.height;
@@ -421,11 +539,12 @@
       const h = (parseFloat(document.getElementById("cropHRange").value) / 100) * canvas.height;
 
       ctx.strokeStyle = "#2563eb";
-      ctx.lineWidth = Math.max(4, canvas.width * 0.006);
+      ctx.lineWidth = Math.max(3, canvas.width * 0.006);
       ctx.strokeRect(x, y, w, h);
     }
 
     document.getElementById("adjustSideSelect").addEventListener("change", syncCropSlidersFromCard);
+    document.getElementById("adjustPageSelect").addEventListener("change", drawAdjustOverlay);
     ["cropXRange", "cropYRange", "cropWRange", "cropHRange"].forEach((id) => {
       document.getElementById(id).addEventListener("input", drawAdjustOverlay);
     });
@@ -434,6 +553,7 @@
       const c = cardState.cards[cardState.editingCardIdx];
       const side = document.getElementById("adjustSideSelect").value;
       const rect = {
+        page: Number(document.getElementById("adjustPageSelect").value) || 1,
         x: parseFloat(document.getElementById("cropXRange").value) / 100,
         y: parseFloat(document.getElementById("cropYRange").value) / 100,
         w: parseFloat(document.getElementById("cropWRange").value) / 100,
@@ -441,15 +561,33 @@
       };
       if (side === "front") {
         c.frontRect = rect;
-        c.frontDataUrl = extractRectDataUrl(c.sourceCanvas, rect);
+        c.frontDataUrl = extractRectDataUrl(c, rect);
       } else {
         c.backRect = rect;
-        c.backDataUrl = extractRectDataUrl(c.sourceCanvas, rect);
+        c.backMissing = false;
+        c.backDataUrl = extractRectDataUrl(c, rect);
       }
       adjModal.classList.remove("open");
       renderAllCardsPreview();
       window.ShopUI.toast("Crop updated & synced to batch!");
     });
+
+    function loadImg(src) {
+      return new Promise((resolve) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => resolve(null);
+        im.src = src;
+      });
+    }
+
+    // Draw a card with a thin light-grey cut border just outside its edge
+    function drawCardWithBorder(ctx, img, x, y) {
+      ctx.drawImage(img, x, y, CARD_W, CARD_H);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 1, y - 1, CARD_W + 2, CARD_H + 2);
+    }
 
     // Build Combined A4 (up to 5 pairs) or 4x6 Sheet Canvas at 300 DPI
     async function buildCardSheetCanvas() {
@@ -462,28 +600,28 @@
       ctx.fillRect(0, 0, sheet.width, sheet.height);
 
       const cardsToDraw = isA4 ? cardState.cards.slice(0, 5) : cardState.cards.slice(0, 1);
-      const cardW = isA4 ? 1011 : 1011;
-      const cardH = isA4 ? 638 : 638;
+
+      // A4: two columns of exact CR80 cards, centred, with even cut gaps
+      const colGap = 100;
+      const rowGap = 45;
+      const leftX = Math.round((sheet.width - (CARD_W * 2 + colGap)) / 2);
+      const rightX = leftX + CARD_W + colGap;
+      const topY = Math.round((sheet.height - (5 * CARD_H + 4 * rowGap)) / 2);
 
       for (let i = 0; i < cardsToDraw.length; i++) {
-        const fImg = new Image();
-        const bImg = new Image();
-        await Promise.all([
-          new Promise((r) => { fImg.onload = r; fImg.src = cardsToDraw[i].frontDataUrl; }),
-          new Promise((r) => { bImg.onload = r; bImg.src = cardsToDraw[i].backDataUrl; })
+        const [fImg, bImg] = await Promise.all([
+          loadImg(cardsToDraw[i].frontDataUrl),
+          cardsToDraw[i].backDataUrl ? loadImg(cardsToDraw[i].backDataUrl) : Promise.resolve(null)
         ]);
 
         if (isA4) {
-          const y = 90 + i * (cardH + 45);
-          ctx.drawImage(fImg, 170, y, cardW, cardH);
-          ctx.drawImage(bImg, 1300, y, cardW, cardH);
-          ctx.strokeStyle = "#cbd5e1";
-          ctx.lineWidth = 2;
-          ctx.strokeRect(170, y, cardW, cardH);
-          ctx.strokeRect(1300, y, cardW, cardH);
+          const y = topY + i * (CARD_H + rowGap);
+          if (fImg) drawCardWithBorder(ctx, fImg, leftX, y);
+          if (bImg) drawCardWithBorder(ctx, bImg, rightX, y);
         } else {
-          ctx.drawImage(fImg, 94, 180, cardW, cardH);
-          ctx.drawImage(bImg, 94, 920, cardW, cardH);
+          const x = Math.round((sheet.width - CARD_W) / 2);
+          if (fImg) drawCardWithBorder(ctx, fImg, x, 180);
+          if (bImg) drawCardWithBorder(ctx, bImg, x, 920);
         }
       }
       return sheet;
@@ -541,7 +679,7 @@
       for (let i = 0; i < cardState.cards.length; i++) {
         const c = cardState.cards[i];
         zip.file(`Card-${i + 1}-Front.jpg`, c.frontDataUrl.split(",")[1], { base64: true });
-        zip.file(`Card-${i + 1}-Back.jpg`, c.backDataUrl.split(",")[1], { base64: true });
+        if (c.backDataUrl) zip.file(`Card-${i + 1}-Back.jpg`, c.backDataUrl.split(",")[1], { base64: true });
       }
       const blob = await zip.generateAsync({ type: "blob" });
       window.ShopUI.downloadBlob(blob, "therajesh-all-cards.zip");
@@ -551,7 +689,15 @@
       const sheet = await buildCardSheetCanvas();
       const url = sheet.toDataURL("image/jpeg", 0.95);
       const win = window.open("", "_blank");
-      win.document.write(`<img src="${url}" style="width:100%;display:block;" onload="window.print();window.close();" />`);
+      if (!win) { window.ShopUI.toast("Please allow pop-ups to print."); return; }
+      const isA4 = cardState.sheetMode === "A4";
+      win.document.write(
+        `<!doctype html><html><head><title>Print card sheet</title><style>` +
+          `@page{size:${isA4 ? "210mm 297mm" : "101.6mm 152.4mm"};margin:0}html,body{margin:0;padding:0}` +
+          `img{width:${isA4 ? "210mm" : "101.6mm"};height:${isA4 ? "297mm" : "152.4mm"};display:block}</style></head><body>` +
+          `<img src="${url}" onload="window.print();window.close();" /></body></html>`
+      );
+      win.document.close();
     });
   </script>
 </body>

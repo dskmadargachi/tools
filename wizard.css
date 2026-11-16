@@ -132,7 +132,7 @@
 
 .sheet-preview-box canvas {
   max-width: 100%;
-  max-height: 310px;
+  max-height: 400px;
   border-radius: 6px;
   background: #ffffff;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
