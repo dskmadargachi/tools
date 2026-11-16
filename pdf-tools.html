@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Tools Suite — therajesh.shop</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="stylesheet" href="./site-theme.css" />
+  <style>
+    .page-thumb-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .page-thumb {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      background: var(--surface);
+      text-align: center;
+      cursor: pointer;
+    }
+    .page-thumb.selected {
+      border-color: var(--primary);
+      background: #eff6ff;
+    }
+    .page-thumb canvas {
+      width: 100%;
+      border-radius: 6px;
+      display: block;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container">
+    <section class="card-box">
+      <h2 class="section-title" data-en="Client-Side PDF Tools" data-bn="পিডিএফ টুলস (১০০% অফলাইন প্রসেসিং)">Client-Side PDF Tools</h2>
+      <p class="section-sub" data-en="Merge, extract pages, convert images to PDF, or export PDF pages as JPGs." data-bn="পিডিএফ মার্জ, পেজ আলাদা করা, ছবি থেকে পিডিএফ বা পিডিএফ থেকে JPG বানান।">Merge, extract pages, convert images to PDF, or export PDF pages as JPGs.</p>
+
+      <div class="pill-grid" id="pdfToolTabs" style="margin-bottom:16px;">
+        <button type="button" class="pill-btn active" data-tab="merge">Merge PDF</button>
+        <button type="button" class="pill-btn" data-tab="organize">Split / Pages</button>
+        <button type="button" class="pill-btn" data-tab="img2pdf">Images → PDF</button>
+        <button type="button" class="pill-btn" data-tab="pdf2jpg">PDF → JPG</button>
+      </div>
+
+      <div class="progress-box" id="pdfProgressBox">
+        <div class="progress-meta">
+          <span class="progress-label">Processing PDF...</span>
+          <span class="progress-pct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill"></div></div>
+      </div>
+
+      <!-- Tab 1: Merge PDF -->
+      <div id="tab-merge" class="pdf-tab-panel">
+        <div class="dropzone" onclick="document.getElementById('mergeInput').click()">
+          <strong>Select 2 or More PDF Files to Merge</strong>
+          <input type="file" id="mergeInput" accept=".pdf" multiple hidden />
+        </div>
+        <div id="mergeFileList" style="margin:12px 0;font-size:13.5px;"></div>
+        <button type="button" class="btn-primary" id="runMergeBtn" disabled>⬇ Merge & Download PDF</button>
+      </div>
+
+      <!-- Tab 2: Split / Extract Pages -->
+      <div id="tab-organize" class="pdf-tab-panel" style="display:none;">
+        <div class="dropzone" onclick="document.getElementById('orgInput').click()">
+          <strong>Select a PDF to Extract or Remove Pages</strong>
+          <input type="file" id="orgInput" accept=".pdf" hidden />
+        </div>
+        <div id="orgThumbGrid" class="page-thumb-grid"></div>
+        <button type="button" class="btn-primary" id="runExtractBtn" style="display:none;">⬇ Download Selected Pages PDF</button>
+      </div>
+
+      <!-- Tab 3: Images to PDF -->
+      <div id="tab-img2pdf" class="pdf-tab-panel" style="display:none;">
+        <div class="dropzone" onclick="document.getElementById('imgPdfInput').click()">
+          <strong>Select Images (JPG / PNG) to Convert to PDF</strong>
+          <input type="file" id="imgPdfInput" accept="image/*" multiple hidden />
+        </div>
+        <div id="imgPdfCount" style="margin:12px 0;font-size:13.5px;font-weight:600;"></div>
+        <button type="button" class="btn-primary" id="runImg2PdfBtn" disabled>⬇ Create & Download PDF</button>
+      </div>
+
+      <!-- Tab 4: PDF to JPG -->
+      <div id="tab-pdf2jpg" class="pdf-tab-panel" style="display:none;">
+        <div class="dropzone" onclick="document.getElementById('pdfJpgInput').click()">
+          <strong>Select a PDF to Convert Pages to JPG</strong>
+          <input type="file" id="pdfJpgInput" accept=".pdf" hidden />
+        </div>
+        <button type="button" class="btn-primary" id="runPdf2JpgBtn" style="display:none;margin-top:12px;">⬇ Download All Pages (ZIP)</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="siteFooter"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="./site-ui.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    // Tab Switcher
+    document.getElementById("pdfToolTabs").addEventListener("click", (e) => {
+      const btn = e.target.closest(".pill-btn");
+      if (!btn) return;
+      document.querySelectorAll("#pdfToolTabs .pill-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".pdf-tab-panel").forEach((p) => (p.style.display = "none"));
+      document.getElementById(`tab-${btn.dataset.tab}`).style.display = "block";
+    });
+
+    // 1. Merge PDFs
+    let mergeFiles = [];
+    document.getElementById("mergeInput").addEventListener("change", (e) => {
+      mergeFiles = Array.from(e.target.files || []);
+      document.getElementById("mergeFileList").innerHTML = mergeFiles
+        .map((f, i) => `<div style="padding:6px 0;border-bottom:1px solid #e2e8f0;">${i + 1}. ${f.name}</div>`)
+        .join("");
+      document.getElementById("runMergeBtn").disabled = mergeFiles.length < 2;
+    });
+
+    document.getElementById("runMergeBtn").addEventListener("click", async () => {
+      const { PDFDocument } = window.PDFLib;
+      const merged = await PDFDocument.create();
+      for (let i = 0; i < mergeFiles.length; i++) {
+        window.ShopUI.setProgress("pdfProgressBox", "Merging PDFs...", ((i + 1) / mergeFiles.length) * 100);
+        const doc = await PDFDocument.load(await mergeFiles[i].arrayBuffer());
+        const copied = await merged.copyPages(doc, doc.getPageIndices());
+        copied.forEach((p) => merged.addPage(p));
+      }
+      const bytes = await merged.save();
+      window.ShopUI.downloadBlob(new Blob([bytes], { type: "application/pdf" }), "therajesh-merged.pdf");
+      setTimeout(() => window.ShopUI.hideProgress("pdfProgressBox"), 350);
+    });
+
+    // 2. Split / Extract Pages
+    let orgBytes = null;
+    let selectedPages = new Set();
+    document.getElementById("orgInput").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      orgBytes = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: orgBytes.slice(0) }).promise;
+      const grid = document.getElementById("orgThumbGrid");
+      grid.innerHTML = "";
+      selectedPages.clear();
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        window.ShopUI.setProgress("pdfProgressBox", `Rendering page ${p}/${pdf.numPages}...`, (p / pdf.numPages) * 100);
+        selectedPages.add(p - 1);
+        const page = await pdf.getPage(p);
+        const vp = page.getViewport({ scale: 0.45 });
+        const card = document.createElement("div");
+        card.className = "page-thumb selected";
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+        card.appendChild(canvas);
+        card.insertAdjacentHTML("beforeend", `<strong style="font-size:12px;">Page ${p}</strong>`);
+        card.addEventListener("click", () => {
+          if (selectedPages.has(p - 1)) {
+            selectedPages.delete(p - 1);
+            card.classList.remove("selected");
+          } else {
+            selectedPages.add(p - 1);
+            card.classList.add("selected");
+          }
+        });
+        grid.appendChild(card);
+      }
+      setTimeout(() => window.ShopUI.hideProgress("pdfProgressBox"), 300);
+      document.getElementById("runExtractBtn").style.display = "inline-flex";
+    });
+
+    document.getElementById("runExtractBtn").addEventListener("click", async () => {
+      if (!orgBytes || !selectedPages.size) return;
+      const { PDFDocument } = window.PDFLib;
+      const src = await PDFDocument.load(orgBytes);
+      const out = await PDFDocument.create();
+      const indices = [...selectedPages].sort((a, b) => a - b);
+      const pages = await out.copyPages(src, indices);
+      pages.forEach((p) => out.addPage(p));
+      const bytes = await out.save();
+      window.ShopUI.downloadBlob(new Blob([bytes], { type: "application/pdf" }), "therajesh-extracted.pdf");
+    });
+
+    // 3. Images to PDF
+    let imgPdfFiles = [];
+    document.getElementById("imgPdfInput").addEventListener("change", (e) => {
+      imgPdfFiles = Array.from(e.target.files || []);
+      document.getElementById("imgPdfCount").textContent = `${imgPdfFiles.length} image(s) selected`;
+      document.getElementById("runImg2PdfBtn").disabled = !imgPdfFiles.length;
+    });
+
+    document.getElementById("runImg2PdfBtn").addEventListener("click", async () => {
+      const { PDFDocument } = window.PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      for (let i = 0; i < imgPdfFiles.length; i++) {
+        window.ShopUI.setProgress("pdfProgressBox", "Building PDF...", ((i + 1) / imgPdfFiles.length) * 100);
+        const bytes = await imgPdfFiles[i].arrayBuffer();
+        const isPng = imgPdfFiles[i].type === "image/png";
+        const img = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes);
+        const page = pdfDoc.addPage([595.28, 841.89]);
+        const scale = Math.min(555 / img.width, 800 / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        page.drawImage(img, { x: (595.28 - w) / 2, y: (841.89 - h) / 2, width: w, height: h });
+      }
+      const out = await pdfDoc.save();
+      window.ShopUI.downloadBlob(new Blob([out], { type: "application/pdf" }), "therajesh-images.pdf");
+      setTimeout(() => window.ShopUI.hideProgress("pdfProgressBox"), 350);
+    });
+
+    // 4. PDF to JPG (ZIP)
+    let pdf2JpgFile = null;
+    document.getElementById("pdfJpgInput").addEventListener("change", (e) => {
+      pdf2JpgFile = e.target.files[0];
+      if (pdf2JpgFile) document.getElementById("runPdf2JpgBtn").style.display = "inline-flex";
+    });
+
+    document.getElementById("runPdf2JpgBtn").addEventListener("click", async () => {
+      if (!pdf2JpgFile) return;
+      const buf = await pdf2JpgFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const zip = new JSZip();
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        window.ShopUI.setProgress("pdfProgressBox", `Converting page ${p}/${pdf.numPages}...`, (p / pdf.numPages) * 100);
+        const page = await pdf.getPage(p);
+        const vp = page.getViewport({ scale: 2.2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+        zip.file(`page-${p}.jpg`, canvas.toDataURL("image/jpeg", 0.94).split(",")[1], { base64: true });
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      window.ShopUI.downloadBlob(blob, "therajesh-pdf-pages.zip");
+      setTimeout(() => window.ShopUI.hideProgress("pdfProgressBox"), 350);
+    });
+  </script>
+</body>
+</html>
