@@ -1,0 +1,194 @@
+/* Photo Studio & Smart Scanner Styles */
+.step-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  background: #eff6ff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.crop-stage-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 12px 0 16px;
+}
+
+.photo-preview-frame {
+  position: relative;
+  width: 240px;
+  height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  touch-action: none;
+  cursor: grab;
+  background-color: #ffffff;
+}
+
+/* Crisp Transparency Checkerboard Grid */
+.photo-preview-frame.checkerboard,
+.swatch-circle.checkerboard {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
+    linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #cbd5e1 75%),
+    linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.swatch-circle.checkerboard {
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}
+
+.photo-preview-frame canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.face-guide-oval {
+  position: absolute;
+  inset: 24px 36px 56px;
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
+  pointer-events: none;
+}
+
+/* Single-Row 7 Circular Color Swatches (No Text Labels) */
+.swatch-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  max-width: 360px;
+  margin: 10px auto 14px;
+}
+
+.swatch-circle {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.swatch-circle.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px var(--primary);
+  transform: scale(1.06);
+}
+
+.swatch-custom {
+  background: conic-gradient(from 0deg, #ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6, #ec4899, #ef4444);
+}
+
+.swatch-custom input[type="color"] {
+  position: absolute;
+  inset: -6px;
+  width: 52px;
+  height: 52px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.range-row {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto 12px;
+}
+
+.range-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+/* Sheet Preview Box */
+.sheet-preview-box {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.sheet-preview-box canvas {
+  max-width: 100%;
+  max-height: 310px;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Smart Scanner Full Modal */
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: var(--bg);
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.scanner-overlay.open {
+  display: flex;
+}
+
+.scanner-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scanner-body {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 16px 16px 32px;
+  flex: 1;
+}
+
+.filter-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+  }
