@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ID Card Formatter — therajesh.shop</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="stylesheet" href="./site-theme.css" />
+  <link rel="stylesheet" href="./wizard.css" />
+  <style>
+    .card-item-box {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: var(--surface);
+      margin-bottom: 14px;
+    }
+    .card-sides-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (max-width: 500px) {
+      .card-sides-grid { grid-template-columns: 1fr; }
+    }
+    .side-box {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--surface-soft);
+      text-align: center;
+    }
+    .side-box img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      display: block;
+      margin: 8px 0;
+    }
+    .batch-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .batch-dot {
+      width: 14px;
+      height: 6px;
+      border-radius: 999px;
+      background: #cbd5e1;
+    }
+    .batch-dot.filled { background: var(--primary); }
+  </style>
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container">
+    <section class="card-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <h2 class="section-title" style="margin:0;" data-en="ID Card Formatter (Up to 5 Cards)" data-bn="আইডি কার্ড ফরম্যাটার (সর্বোচ্চ ৫টি কার্ড)">ID Card Formatter (Up to 5 Cards)</h2>
+        <button type="button" class="btn-secondary btn-sm" id="openScannerFromCards" data-en="📄 Smart Scanner" data-bn="📄 স্মার্ট স্ক্যানার">📄 Smart Scanner</button>
+      </div>
+      <p class="section-sub" data-en="Select up to 5 PDF/image cards at once. Auto-crops e-Ration, e-Shram, ABHA, Aadhaar & PAN cards." data-bn="একসাথে সর্বোচ্চ ৫টি কার্ড সিলেক্ট করুন। রেশন, ই-শ্রম, আভা, আধার ও প্যান কার্ড অটো-ক্রপ হবে।">Select up to 5 PDF/image cards at once. Auto-crops e-Ration, e-Shram, ABHA, Aadhaar & PAN cards.</p>
+
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;" data-en="Card Type Preset" data-bn="কার্ড টাইপ">Card Type Preset</label>
+        <div class="pill-grid" id="cardTypePills">
+          <button type="button" class="pill-btn active" data-type="ration">WB e-Ration</button>
+          <button type="button" class="pill-btn" data-type="eshram">e-Shram Card</button>
+          <button type="button" class="pill-btn" data-type="abha">ABHA Card</button>
+          <button type="button" class="pill-btn" data-type="aadhaar">Aadhaar</button>
+          <button type="button" class="pill-btn" data-type="pan">PAN Card</button>
+        </div>
+      </div>
+
+      <div class="dropzone" id="cardDropzone">
+        <div style="font-size:32px;margin-bottom:6px;">🪪</div>
+        <strong style="display:block;font-size:15px;margin-bottom:4px;" data-en="Select Up to 5 Card Files (PDF or JPG/PNG)" data-bn="সর্বোচ্চ ৫টি কার্ড ফাইল সিলেক্ট করুন (PDF বা JPG/PNG)">Select Up to 5 Card Files (PDF or JPG/PNG)</strong>
+        <span style="font-size:12.5px;color:#64748b;" data-en="Auto-adds all cards to A4 Batch" data-bn="সব কার্ড অটোমেটিক A4 ব্যাচে যুক্ত হবে">Auto-adds all cards to A4 Batch</span>
+        <input type="file" id="cardFilesInput" accept=".pdf,image/*" multiple hidden />
+      </div>
+
+      <div class="progress-box" id="cardProgressBox">
+        <div class="progress-meta">
+          <span class="progress-label">Reading cards...</span>
+          <span class="progress-pct">0%</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill"></div></div>
+      </div>
+    </section>
+
+    <!-- All Selected Cards Preview List -->
+    <section id="cardsPreviewSection" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong id="loadedCardsHeading" style="font-size:16px;">Preview & Download</strong>
+        <button type="button" class="btn-secondary btn-sm" id="clearAllCardsBtn" data-en="Clear All" data-bn="সব মুছুন">Clear All</button>
+      </div>
+      <div id="cardsListContainer"></div>
+      <button type="button" class="btn-primary" id="openCardExportModalBtn" data-en="Save or Download Sheet (PDF / JPG)" data-bn="শিট সেভ বা ডাউনলোড করুন (PDF / JPG)">Save or Download Sheet (PDF / JPG)</button>
+    </section>
+  </main>
+
+  <!-- Save / Download Modal (No Counter / Payment Service) -->
+  <div class="modal-backdrop" id="cardExportModal">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <strong style="font-size:16px;" data-en="Save or Download" data-bn="সেভ বা ডাউনলোড">Save or Download</strong>
+        <button type="button" class="hdr-btn" id="closeCardExportModalBtn">✕</button>
+      </div>
+
+      <div class="btn-row-2" id="cardSheetModePills" style="margin-bottom:12px;">
+        <button type="button" class="pill-btn active" data-mode="A4">A4 (up to 5 pairs)</button>
+        <button type="button" class="pill-btn" data-mode="4x6">4×6 photo</button>
+      </div>
+
+      <div class="btn-row-2" style="margin-bottom:12px;">
+        <button type="button" class="btn-primary" id="downloadCardsPdfBtn" data-en="⬇ Save as PDF" data-bn="⬇ PDF হিসেবে সেভ">⬇ Save as PDF</button>
+        <button type="button" class="btn-secondary" id="downloadCardsSheetJpgBtn" data-en="⬇ Sheet JPG" data-bn="⬇ শিট JPG">⬇ Sheet JPG</button>
+      </div>
+
+      <div class="btn-row-2" style="margin-bottom:14px;">
+        <button type="button" class="btn-secondary" id="downloadAllIndividualJpgBtn" data-en="⬇ All Front+Back JPGs" data-bn="⬇ সব আলাদা JPG">⬇ All Front+Back JPGs</button>
+        <button type="button" class="btn-secondary" id="printCardSheetBtn" data-en="🖨 Print Sheet" data-bn="🖨 প্রিন্ট করুন">🖨 Print Sheet</button>
+      </div>
+
+      <!-- Auto-populated A4 Batch Box -->
+      <div style="border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--surface-soft);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span class="step-badge" id="batchCounterBadge" style="margin:0;">A4 Batch · 0/5</span>
+          <div class="batch-dots" id="batchDots">
+            <span class="batch-dot"></span><span class="batch-dot"></span><span class="batch-dot"></span><span class="batch-dot"></span><span class="batch-dot"></span>
+          </div>
+        </div>
+        <div class="btn-row-2">
+          <button type="button" class="btn-secondary btn-sm" id="addMoreToBatchBtn">+ Add More (Max 5)</button>
+          <button type="button" class="btn-secondary btn-sm" id="clearBatchBtn">🗑 Clear Batch</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Adjust Crop Modal -->
+  <div class="modal-backdrop" id="adjustCropModal">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong style="font-size:15px;">Adjust Crop</strong>
+        <button type="button" class="hdr-btn" id="closeAdjustCropBtn">✕</button>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:700;">Side:</label>
+        <select id="adjustSideSelect" class="form-select" style="height:38px;">
+          <option value="front">Front</option>
+          <option value="back">Back</option>
+        </select>
+      </div>
+      <canvas id="adjustCropCanvas" style="width:100%;max-height:240px;object-fit:contain;border:1px solid var(--border);border-radius:10px;background:#f8fafc;"></canvas>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;font-size:12px;">
+        <label>Left % <input type="range" id="cropXRange" min="0" max="70" step="0.5" style="width:100%"></label>
+        <label>Top % <input type="range" id="cropYRange" min="0" max="80" step="0.5" style="width:100%"></label>
+        <label>Width % <input type="range" id="cropWRange" min="15" max="100" step="0.5" style="width:100%"></label>
+        <label>Height % <input type="range" id="cropHRange" min="10" max="100" step="0.5" style="width:100%"></label>
+      </div>
+      <button type="button" class="btn-primary" id="applyAdjustCropBtn">Apply & Sync Batch</button>
+    </div>
+  </div>
+
+  <div id="siteFooter"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="./site-ui.js"></script>
+  <script src="./scan-wizard.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const cardState = {
+      type: "ration",
+      cards: [], // { id, name, sourceCanvas, frontRect, backRect, frontDataUrl, backDataUrl }
+      sheetMode: "A4",
+      editingCardIdx: 0
+    };
+
+    // Calibrated Crop Templates (normalized 0..1 coordinates on A4 PDF)
+    const PRESET_RECTS = {
+      // Optimized for WB e-Ration Card (RKSY-I, PHH, AAY, SPHH) with safe right/bottom buffer
+      ration: {
+        front: { x: 0.032, y: 0.542, w: 0.456, h: 0.212 },
+        back:  { x: 0.508, y: 0.542, w: 0.458, h: 0.212 }
+      },
+      eshram: {
+        front: { x: 0.055, y: 0.120, w: 0.435, h: 0.205 },
+        back:  { x: 0.510, y: 0.120, w: 0.435, h: 0.205 }
+      },
+      abha: {
+        front: { x: 0.055, y: 0.130, w: 0.435, h: 0.205 },
+        back:  { x: 0.510, y: 0.130, w: 0.435, h: 0.205 }
+      },
+      aadhaar: {
+        front: { x: 0.045, y: 0.680, w: 0.445, h: 0.210 },
+        back:  { x: 0.510, y: 0.680, w: 0.445, h: 0.210 }
+      },
+      pan: {
+        front: { x: 0.055, y: 0.660, w: 0.435, h: 0.205 },
+        back:  { x: 0.510, y: 0.660, w: 0.435, h: 0.205 }
+      }
+    };
+
+    document.getElementById("cardTypePills").addEventListener("click", (e) => {
+      const btn = e.target.closest(".pill-btn");
+      if (!btn) return;
+      document.querySelectorAll("#cardTypePills .pill-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      cardState.type = btn.dataset.type;
+    });
+
+    const cardDropzone = document.getElementById("cardDropzone");
+    const cardInput = document.getElementById("cardFilesInput");
+    cardDropzone.addEventListener("click", () => cardInput.click());
+    cardDropzone.addEventListener("dragover", (e) => { e.preventDefault(); cardDropzone.classList.add("dragover"); });
+    cardDropzone.addEventListener("dragleave", () => cardDropzone.classList.remove("dragover"));
+    cardDropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      cardDropzone.classList.remove("dragover");
+      handleCardFiles(e.dataTransfer.files);
+    });
+    cardInput.addEventListener("change", (e) => handleCardFiles(e.target.files));
+
+    function extractRectDataUrl(srcCanvas, rect) {
+      // Standard ID Card Aspect Ratio: 85.6mm x 54mm (1011 x 638 px at 300 DPI)
+      const out = document.createElement("canvas");
+      out.width = 1011;
+      out.height = 638;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      const sx = Math.round(srcCanvas.width * rect.x);
+      const sy = Math.round(srcCanvas.height * rect.y);
+      const sw = Math.round(srcCanvas.width * rect.w);
+      const sh = Math.round(srcCanvas.height * rect.h);
+      ctx.drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+      return out.toDataURL("image/jpeg", 0.96);
+    }
+
+    async function renderFileToCanvas(file) {
+      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2.6 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        return { canvas, isPdf: true };
+      } else {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        await new Promise((res) => { img.onload = res; img.src = url; });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        return { canvas, isPdf: false };
+      }
+    }
+
+    async function handleCardFiles(fileList) {
+      let files = Array.from(fileList || []);
+      if (!files.length) return;
+
+      const remainingSlots = 5 - cardState.cards.length;
+      if (remainingSlots <= 0) {
+        window.ShopUI.toast("Maximum 5 cards already in batch!");
+        return;
+      }
+      if (files.length > remainingSlots) {
+        window.ShopUI.toast(`Maximum 5 cards allowed. Loading first ${remainingSlots} file(s).`);
+        files = files.slice(0, remainingSlots);
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const pct = Math.round(((i + 0.3) / files.length) * 100);
+        window.ShopUI.setProgress("cardProgressBox", `Reading card ${i + 1} of ${files.length}...`, pct);
+
+        const { canvas, isPdf } = await renderFileToCanvas(files[i]);
+        const preset = PRESET_RECTS[cardState.type] || PRESET_RECTS.ration;
+        const frontRect = isPdf ? { ...preset.front } : { x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
+        const backRect  = isPdf ? { ...preset.back }  : { x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
+
+        cardState.cards.push({
+          id: Date.now() + Math.random(),
+          name: files[i].name,
+          sourceCanvas: canvas,
+          frontRect,
+          backRect,
+          frontDataUrl: extractRectDataUrl(canvas, frontRect),
+          backDataUrl: extractRectDataUrl(canvas, backRect)
+        });
+
+        window.ShopUI.setProgress("cardProgressBox", `Processed ${i + 1} of ${files.length}`, Math.round(((i + 1) / files.length) * 100));
+      }
+
+      setTimeout(() => window.ShopUI.hideProgress("cardProgressBox"), 350);
+      cardInput.value = "";
+      renderAllCardsPreview();
+    }
+
+    function updateBatchUI() {
+      const count = cardState.cards.length;
+      document.getElementById("batchCounterBadge").textContent = `A4 Batch · ${count}/5`;
+      document.querySelectorAll("#batchDots .batch-dot").forEach((dot, idx) => {
+        dot.classList.toggle("filled", idx < count);
+      });
+    }
+
+    function renderAllCardsPreview() {
+      const sec = document.getElementById("cardsPreviewSection");
+      const list = document.getElementById("cardsListContainer");
+      if (!cardState.cards.length) {
+        sec.style.display = "none";
+        return;
+      }
+
+      sec.style.display = "block";
+      document.getElementById("loadedCardsHeading").textContent = `Preview & Download (${cardState.cards.length}/5 Cards)`;
+      list.innerHTML = "";
+
+      cardState.cards.forEach((c, idx) => {
+        const div = document.createElement("div");
+        div.className = "card-item-box";
+        div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div>
+              <strong style="font-size:15px;">Card ${idx + 1}</strong>
+              <span style="display:block;font-size:12px;color:#64748b;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn-secondary btn-sm" data-adjust="${idx}">✂ Adjust crop</button>
+              <button type="button" class="btn-secondary btn-sm" data-del="${idx}">✕</button>
+            </div>
+          </div>
+          <div class="card-sides-grid">
+            <div class="side-box">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <strong style="font-size:13px;">Front</strong>
+                <button type="button" class="btn-secondary btn-sm" data-dl-front="${idx}">⬇ Front JPG</button>
+              </div>
+              <img src="${c.frontDataUrl}" alt="Front" />
+            </div>
+            <div class="side-box">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <strong style="font-size:13px;">Back</strong>
+                <button type="button" class="btn-secondary btn-sm" data-dl-back="${idx}">⬇ Back JPG</button>
+              </div>
+              <img src="${c.backDataUrl}" alt="Back" />
+            </div>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+
+      updateBatchUI();
+    }
+
+    document.getElementById("cardsListContainer").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.dataset.dlFront !== undefined) {
+        const c = cardState.cards[Number(btn.dataset.dlFront)];
+        const blob = await (await fetch(c.frontDataUrl)).blob();
+        window.ShopUI.downloadBlob(blob, `${c.name}-front.jpg`);
+      } else if (btn.dataset.dlBack !== undefined) {
+        const c = cardState.cards[Number(btn.dataset.dlBack)];
+        const blob = await (await fetch(c.backDataUrl)).blob();
+        window.ShopUI.downloadBlob(blob, `${c.name}-back.jpg`);
+      } else if (btn.dataset.del !== undefined) {
+        cardState.cards.splice(Number(btn.dataset.del), 1);
+        renderAllCardsPreview();
+      } else if (btn.dataset.adjust !== undefined) {
+        openAdjustCropModal(Number(btn.dataset.adjust));
+      }
+    });
+
+    // Adjust Crop Modal
+    const adjModal = document.getElementById("adjustCropModal");
+    function openAdjustCropModal(idx) {
+      cardState.editingCardIdx = idx;
+      adjModal.classList.add("open");
+      syncCropSlidersFromCard();
+    }
+
+    function syncCropSlidersFromCard() {
+      const c = cardState.cards[cardState.editingCardIdx];
+      const side = document.getElementById("adjustSideSelect").value;
+      const r = side === "front" ? c.frontRect : c.backRect;
+      document.getElementById("cropXRange").value = (r.x * 100).toFixed(1);
+      document.getElementById("cropYRange").value = (r.y * 100).toFixed(1);
+      document.getElementById("cropWRange").value = (r.w * 100).toFixed(1);
+      document.getElementById("cropHRange").value = (r.h * 100).toFixed(1);
+      drawAdjustOverlay();
+    }
+
+    function drawAdjustOverlay() {
+      const c = cardState.cards[cardState.editingCardIdx];
+      const canvas = document.getElementById("adjustCropCanvas");
+      canvas.width = c.sourceCanvas.width;
+      canvas.height = c.sourceCanvas.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(c.sourceCanvas, 0, 0);
+
+      const x = (parseFloat(document.getElementById("cropXRange").value) / 100) * canvas.width;
+      const y = (parseFloat(document.getElementById("cropYRange").value) / 100) * canvas.height;
+      const w = (parseFloat(document.getElementById("cropWRange").value) / 100) * canvas.width;
+      const h = (parseFloat(document.getElementById("cropHRange").value) / 100) * canvas.height;
+
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = Math.max(4, canvas.width * 0.006);
+      ctx.strokeRect(x, y, w, h);
+    }
+
+    document.getElementById("adjustSideSelect").addEventListener("change", syncCropSlidersFromCard);
+    ["cropXRange", "cropYRange", "cropWRange", "cropHRange"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", drawAdjustOverlay);
+    });
+    document.getElementById("closeAdjustCropBtn").addEventListener("click", () => adjModal.classList.remove("open"));
+    document.getElementById("applyAdjustCropBtn").addEventListener("click", () => {
+      const c = cardState.cards[cardState.editingCardIdx];
+      const side = document.getElementById("adjustSideSelect").value;
+      const rect = {
+        x: parseFloat(document.getElementById("cropXRange").value) / 100,
+        y: parseFloat(document.getElementById("cropYRange").value) / 100,
+        w: parseFloat(document.getElementById("cropWRange").value) / 100,
+        h: parseFloat(document.getElementById("cropHRange").value) / 100
+      };
+      if (side === "front") {
+        c.frontRect = rect;
+        c.frontDataUrl = extractRectDataUrl(c.sourceCanvas, rect);
+      } else {
+        c.backRect = rect;
+        c.backDataUrl = extractRectDataUrl(c.sourceCanvas, rect);
+      }
+      adjModal.classList.remove("open");
+      renderAllCardsPreview();
+      window.ShopUI.toast("Crop updated & synced to batch!");
+    });
+
+    // Build Combined A4 (up to 5 pairs) or 4x6 Sheet Canvas at 300 DPI
+    async function buildCardSheetCanvas() {
+      const isA4 = cardState.sheetMode === "A4";
+      const sheet = document.createElement("canvas");
+      sheet.width = isA4 ? 2480 : 1200;
+      sheet.height = isA4 ? 3508 : 1800;
+      const ctx = sheet.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, sheet.width, sheet.height);
+
+      const cardsToDraw = isA4 ? cardState.cards.slice(0, 5) : cardState.cards.slice(0, 1);
+      const cardW = isA4 ? 1011 : 1011;
+      const cardH = isA4 ? 638 : 638;
+
+      for (let i = 0; i < cardsToDraw.length; i++) {
+        const fImg = new Image();
+        const bImg = new Image();
+        await Promise.all([
+          new Promise((r) => { fImg.onload = r; fImg.src = cardsToDraw[i].frontDataUrl; }),
+          new Promise((r) => { bImg.onload = r; bImg.src = cardsToDraw[i].backDataUrl; })
+        ]);
+
+        if (isA4) {
+          const y = 90 + i * (cardH + 45);
+          ctx.drawImage(fImg, 170, y, cardW, cardH);
+          ctx.drawImage(bImg, 1300, y, cardW, cardH);
+          ctx.strokeStyle = "#cbd5e1";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(170, y, cardW, cardH);
+          ctx.strokeRect(1300, y, cardW, cardH);
+        } else {
+          ctx.drawImage(fImg, 94, 180, cardW, cardH);
+          ctx.drawImage(bImg, 94, 920, cardW, cardH);
+        }
+      }
+      return sheet;
+    }
+
+    const exportModal = document.getElementById("cardExportModal");
+    document.getElementById("openCardExportModalBtn").addEventListener("click", () => exportModal.classList.add("open"));
+    document.getElementById("closeCardExportModalBtn").addEventListener("click", () => exportModal.classList.remove("open"));
+    document.getElementById("addMoreToBatchBtn").addEventListener("click", () => {
+      exportModal.classList.remove("open");
+      cardInput.click();
+    });
+    document.getElementById("clearBatchBtn").addEventListener("click", () => {
+      cardState.cards = [];
+      exportModal.classList.remove("open");
+      renderAllCardsPreview();
+    });
+    document.getElementById("clearAllCardsBtn").addEventListener("click", () => {
+      cardState.cards = [];
+      renderAllCardsPreview();
+    });
+
+    document.getElementById("cardSheetModePills").addEventListener("click", (e) => {
+      const btn = e.target.closest(".pill-btn");
+      if (!btn) return;
+      document.querySelectorAll("#cardSheetModePills .pill-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      cardState.sheetMode = btn.dataset.mode;
+    });
+
+    document.getElementById("downloadCardsSheetJpgBtn").addEventListener("click", async () => {
+      const sheet = await buildCardSheetCanvas();
+      sheet.toBlob((blob) => {
+        window.ShopUI.downloadBlob(blob, `therajesh-cards-${cardState.sheetMode}.jpg`);
+        window.ShopUI.toast("Sheet JPG downloaded!");
+      }, "image/jpeg", 0.96);
+    });
+
+    document.getElementById("downloadCardsPdfBtn").addEventListener("click", async () => {
+      const sheet = await buildCardSheetCanvas();
+      const { PDFDocument } = window.PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      const ptW = cardState.sheetMode === "A4" ? 595.28 : 288;
+      const ptH = cardState.sheetMode === "A4" ? 841.89 : 432;
+      const page = pdfDoc.addPage([ptW, ptH]);
+      const jpg = await pdfDoc.embedJpg(sheet.toDataURL("image/jpeg", 0.95));
+      page.drawImage(jpg, { x: 0, y: 0, width: ptW, height: ptH });
+      const bytes = await pdfDoc.save();
+      window.ShopUI.downloadBlob(new Blob([bytes], { type: "application/pdf" }), `therajesh-cards-${cardState.sheetMode}.pdf`);
+      window.ShopUI.toast("Cards PDF downloaded!");
+    });
+
+    document.getElementById("downloadAllIndividualJpgBtn").addEventListener("click", async () => {
+      const zip = new JSZip();
+      for (let i = 0; i < cardState.cards.length; i++) {
+        const c = cardState.cards[i];
+        zip.file(`Card-${i + 1}-Front.jpg`, c.frontDataUrl.split(",")[1], { base64: true });
+        zip.file(`Card-${i + 1}-Back.jpg`, c.backDataUrl.split(",")[1], { base64: true });
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      window.ShopUI.downloadBlob(blob, "therajesh-all-cards.zip");
+    });
+
+    document.getElementById("printCardSheetBtn").addEventListener("click", async () => {
+      const sheet = await buildCardSheetCanvas();
+      const url = sheet.toDataURL("image/jpeg", 0.95);
+      const win = window.open("", "_blank");
+      win.document.write(`<img src="${url}" style="width:100%;display:block;" onload="window.print();window.close();" />`);
+    });
+  </script>
+</body>
+</html>
