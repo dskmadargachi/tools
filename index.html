@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>therajesh.shop — Photo Studio, Card Cropper & PDF Tools</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="manifest" href="./site.webmanifest" />
+  <link rel="stylesheet" href="./site-theme.css" />
+  <link rel="stylesheet" href="./wizard.css" />
+</head>
+<body>
+  <div id="siteHeader"></div>
+
+  <main class="container">
+    <!-- 4 Core Client-Side Services -->
+    <section class="tools-grid">
+      <button type="button" class="tool-card active" id="navPhotoTool">
+        <div class="tool-icon">📸</div>
+        <div>
+          <h3 data-en="Passport & ID Photo" data-bn="পাসপোর্ট ও আইডি ফটো">Passport & ID Photo</h3>
+          <p data-en="HD background removal, 3×3.5 cm, A4 (9–45) & 4×6 sheets" data-bn="HD ব্যাকগ্রাউন্ড রিমুভ, 3×3.5 cm, A4 (৯–৪৫) ও 4×6 শিট">HD background removal, 3×3.5 cm, A4 (9–45) & 4×6 sheets</p>
+        </div>
+      </button>
+
+      <a href="./cards.html" class="tool-card">
+        <div class="tool-icon">🪪</div>
+        <div>
+          <h3 data-en="ID Card Formatter" data-bn="আইডি কার্ড ফরম্যাটার">ID Card Formatter</h3>
+          <p data-en="Up to 5 cards at once: e-Ration, e-Shram, ABHA, Aadhaar, PAN" data-bn="একসাথে ৫টি কার্ড: রেশন, ই-শ্রম, আভা, আধার ও প্যান কার্ড">Up to 5 cards at once: e-Ration, e-Shram, ABHA, Aadhaar, PAN</p>
+        </div>
+      </a>
+
+      <button type="button" class="tool-card" id="openSmartScannerBtn">
+        <div class="tool-icon">📄</div>
+        <div>
+          <h3 data-en="Smart Document Scanner" data-bn="স্মার্ট ডকুমেন্ট স্ক্যানার">Smart Document Scanner</h3>
+          <p data-en="ID Card, Certificate, Admit Card & Auto Scan to PDF/JPG" data-bn="আইডি কার্ড, সার্টিফিকেট, অ্যাডমিট কার্ড স্ক্যান ও PDF/JPG">ID Card, Certificate, Admit Card & Auto Scan to PDF/JPG</p>
+        </div>
+      </button>
+
+      <a href="./pdf-tools.html" class="tool-card">
+        <div class="tool-icon">📑</div>
+        <div>
+          <h3 data-en="PDF Tools Suite" data-bn="পিডিএফ টুলস">PDF Tools Suite</h3>
+          <p data-en="Merge PDF, extract/rotate pages, Images to PDF & PDF to JPG" data-bn="পিডিএফ মার্জ, পেজ আলাদা করা, ইমেজ থেকে PDF ও JPG">Merge PDF, extract/rotate pages, Images to PDF & PDF to JPG</p>
+        </div>
+      </a>
+    </section>
+
+    <!-- Passport / ID Photo Studio (#pp) -->
+    <section class="card-box" id="pp">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <h2 class="section-title" style="margin:0;" data-en="Photo Sheet & Background Studio" data-bn="ফটো শিট ও ব্যাকগ্রাউন্ড স্টুডিও">Photo Sheet & Background Studio</h2>
+        <button type="button" class="btn-secondary btn-sm" id="resetPhotoBtn" style="display:none;" data-en="New Photo" data-bn="নতুন ছবি">New Photo</button>
+      </div>
+      <p class="section-sub" data-en="Create print-ready JPG or PDF photo sheets directly in your browser." data-bn="সরাসরি ব্রাউজারেই ব্যাকগ্রাউন্ড বদলে JPG বা PDF ফটো শিট তৈরি করুন।">Create print-ready JPG or PDF photo sheets directly in your browser.</p>
+
+      <!-- Upload Step -->
+      <div id="ppUploadView">
+        <div class="dropzone" id="photoDropzone">
+          <div style="font-size:34px;margin-bottom:8px;">🖼️</div>
+          <strong style="display:block;font-size:15px;margin-bottom:4px;" data-en="Tap to Select Photo or Drop Here" data-bn="ছবি সিলেক্ট করতে এখানে ট্যাপ করুন">Tap to Select Photo or Drop Here</strong>
+          <span style="font-size:12.5px;color:#64748b;">JPG, PNG, WEBP</span>
+          <input type="file" id="photoFileInput" accept="image/*" hidden />
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-box" id="photoProgressBox">
+        <div class="progress-meta">
+          <span class="progress-label">Processing...</span>
+          <span class="progress-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Step 1: Crop & Background -->
+      <div id="ppStep1View" style="display:none;">
+        <span class="step-badge" data-en="Step 1 of 2 • Crop & Background" data-bn="ধাপ ১ / ২ • ক্রপ ও ব্যাকগ্রাউন্ড">Step 1 of 2 • Crop & Background</span>
+        <div class="crop-stage-wrap">
+          <div class="photo-preview-frame" id="photoPreviewFrame">
+            <canvas id="photoCropCanvas" width="480" height="560"></canvas>
+            <div class="face-guide-oval"></div>
+          </div>
+        </div>
+
+        <div class="range-row">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:4px;">
+            <span data-en="Zoom" data-bn="জুম">Zoom</span>
+            <span id="zoomPctLabel">100%</span>
+          </div>
+          <input type="range" id="photoZoomSlider" min="0.6" max="2.6" step="0.02" value="1" />
+        </div>
+
+        <div style="max-width:360px;margin:0 auto 10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:700;" data-en="Background Colour" data-bn="ব্যাকগ্রাউন্ড কালার">Background Colour</span>
+            <button type="button" class="btn-secondary btn-sm" id="runBgRemoveBtn" data-en="✨ Remove BG (HD)" data-bn="✨ ব্যাকগ্রাউন্ড রিমুভ">✨ Remove BG (HD)</button>
+          </div>
+
+          <!-- 7 Single-Row Circular Swatches (No Text Labels) -->
+          <div class="swatch-row" id="bgSwatchRow">
+            <button type="button" class="swatch-circle checkerboard" data-bg="transparent" title="Transparent" aria-label="Transparent"></button>
+            <button type="button" class="swatch-circle active" data-bg="#ffffff" style="background:#ffffff;" title="White" aria-label="White"></button>
+            <button type="button" class="swatch-circle" data-bg="#2563eb" style="background:#2563eb;" title="Blue" aria-label="Blue"></button>
+            <button type="button" class="swatch-circle" data-bg="#dc2626" style="background:#dc2626;" title="Red" aria-label="Red"></button>
+            <button type="button" class="swatch-circle" data-bg="#94a3b8" style="background:#94a3b8;" title="Grey" aria-label="Grey"></button>
+            <button type="button" class="swatch-circle" data-bg="#16a34a" style="background:#16a34a;" title="Green" aria-label="Green"></button>
+            <label class="swatch-circle swatch-custom" title="Custom Colour" aria-label="Custom Colour">
+              <input type="color" id="customBgPicker" value="#38bdf8" />
+            </label>
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary" id="toPhotoStep2Btn" data-en="Continue to Sheet & Size →" data-bn="শিট ও সাইজ সেট করুন →">Continue to Sheet & Size →</button>
+      </div>
+
+      <!-- Step 2: Sheet & Size (Final Export Step) -->
+      <div id="ppStep2View" style="display:none;">
+        <span class="step-badge" data-en="Step 2 of 2 • Sheet & Download" data-bn="ধাপ ২ / ২ • শিট ও ডাউনলোড">Step 2 of 2 • Sheet & Download</span>
+
+        <div class="sheet-preview-box">
+          <canvas id="sheetPreviewCanvas"></canvas>
+          <div id="sheetSummaryText" style="font-size:12.5px;color:#475569;margin-top:8px;font-weight:600;"></div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;" data-en="Photo Size" data-bn="ফটো সাইজ">Photo Size</label>
+          <div class="pill-grid" id="photoSizePills">
+            <button type="button" class="pill-btn active" data-w="30" data-h="35" data-label="3×3.5 cm">3×3.5 cm</button>
+            <button type="button" class="pill-btn" data-w="35" data-h="45" data-label="35×45 mm">35×45 mm</button>
+            <button type="button" class="pill-btn" data-w="50.8" data-h="50.8" data-label="2×2 inch">2×2 inch</button>
+            <button type="button" class="pill-btn" data-w="25" data-h="35" data-label="25×35 mm">25×35 mm</button>
+            <button type="button" class="pill-btn" data-custom="1" data-label="Custom">Custom</button>
+          </div>
+          <div id="customSizeInputs" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+            <input type="number" id="customWInput" class="form-input" value="30" min="10" max="150" placeholder="Width (mm)" />
+            <input type="number" id="customHInput" class="form-input" value="35" min="10" max="200" placeholder="Height (mm)" />
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;" data-en="Paper Size" data-bn="পেপার সাইজ">Paper Size</label>
+          <div class="btn-row-2" id="paperSizePills">
+            <button type="button" class="pill-btn active" data-paper="4x6">4×6 Photo Paper</button>
+            <button type="button" class="pill-btn" data-paper="A4">A4 Sheet</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;" data-en="How Many Photos?" data-bn="কতগুলো ছবি?">How Many Photos?</label>
+          <select id="photoCopiesSelect" class="form-select"></select>
+        </div>
+
+        <div class="btn-row-2" style="margin-bottom:10px;">
+          <button type="button" class="btn-primary" id="savePhotoJpgBtn" data-en="⬇ Save as JPG" data-bn="⬇ JPG সেভ করুন">⬇ Save as JPG</button>
+          <button type="button" class="btn-primary" id="savePhotoPdfBtn" data-en="⬇ Save as PDF" data-bn="⬇ PDF সেভ করুন">⬇ Save as PDF</button>
+        </div>
+
+        <div class="btn-row-2">
+          <button type="button" class="btn-secondary" id="backToStep1Btn" data-en="← Back" data-bn="← পেছনে">← Back</button>
+          <button type="button" class="btn-secondary" id="printPhotoSheetBtn" data-en="🖨 Print Sheet" data-bn="🖨 প্রিন্ট করুন">🖨 Print Sheet</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="siteFooter"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="./site-ui.js"></script>
+  <script src="./wizard.js"></script>
+  <script src="./scan-wizard.js"></script>
+</body>
+</html>
