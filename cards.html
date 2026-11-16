@@ -217,13 +217,14 @@
         back:  { page: 1, x: 0.516, y: 0.790, w: 0.411, h: 0.174 }
       },
       eshram: {
-        front: { page: 1, x: 0.055, y: 0.120, w: 0.435, h: 0.205 },
-        back:  { page: 1, x: 0.510, y: 0.120, w: 0.435, h: 0.205 }
+        // Stacked vertically (front on top, back below), centred on the A4 page
+        front: { page: 1, x: 0.150, y: 0.064, w: 0.656, h: 0.293 },
+        back:  { page: 1, x: 0.150, y: 0.385, w: 0.656, h: 0.293 }
       },
-      // ABHA: 1-page A4, front/back side by side at the top
+      // ABHA: 1-page A4, full-width cards stacked vertically (front on top, back below)
       abha: {
-        front: { page: 1, x: 0.045, y: 0.042, w: 0.445, h: 0.190 },
-        back:  { page: 1, x: 0.510, y: 0.042, w: 0.445, h: 0.190 }
+        front: { page: 1, x: 0.048, y: 0.046, w: 0.904, h: 0.403 },
+        back:  { page: 1, x: 0.048, y: 0.480, w: 0.904, h: 0.403 }
       },
       // Ayushman (PM-JAY): 2-page landscape card PDF, page 1 = front, page 2 = back (full-bleed)
       ayushman: {
